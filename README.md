@@ -2,7 +2,7 @@
 
 A mobile-first 3D gaming chair configurator. Orbit, rotate and zoom a chair; swap frame, upholstery, stitching, base, lumbar pillow and RGB; watch the price update live; share your build by URL or short id. No login required.
 
-> Status: **Phase 3 — R3F scene.** See [docs/PROGRESS.md](docs/PROGRESS.md).
+> Status: **Phase 4 — Camera presets, RGB glow, hotspots, save image.** See [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## Stack
 

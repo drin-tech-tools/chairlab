@@ -41,7 +41,7 @@ function ChoiceGroup({
   const swatches = option.choices.every((c) => c.hex);
 
   return (
-    <fieldset className="py-5">
+    <fieldset id={`option-${option.id}`} className="scroll-mt-4 py-5">
       <legend className="float-left text-sm font-medium">{option.label}</legend>
       <span className="float-right text-sm text-muted-foreground">{current?.label}</span>
       <div className={swatches ? "clear-both flex flex-wrap gap-3 pt-3" : "clear-both flex flex-wrap gap-2 pt-3"}>
@@ -115,7 +115,7 @@ function ToggleRow({
   onChange: (id: string, value: boolean) => void;
 }) {
   return (
-    <label className="group flex cursor-pointer items-center justify-between gap-4 py-5">
+    <label id={`option-${option.id}`} className="group flex scroll-mt-4 cursor-pointer items-center justify-between gap-4 py-5">
       <span className="text-sm">
         <span className="font-medium">{option.label}</span>{" "}
         <span className="text-muted-foreground tabular-nums">{priceTag(option.price)}</span>
