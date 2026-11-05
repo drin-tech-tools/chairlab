@@ -7,8 +7,8 @@ One phase per PR. Each phase stops for review before the next begins.
 | 0 | Foundations | ✅ Merged | #1 |
 | 1 | Catalog + Zustand + price engine + URL encode/decode | ✅ Merged | #2 |
 | 2 | UI shell with flat preview | ✅ Merged | #3 |
-| 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | 🟡 In review | — |
-| 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | ⬜ Not started | — |
+| 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | ✅ Merged | #4 |
+| 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | 🟡 In review | — |
 | 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | ⬜ Not started | — |
 | 6 | Polish + Vercel launch, README GIFs, Cucumber happy path | ⬜ Not started | — |
 
@@ -102,8 +102,34 @@ One phase per PR. Each phase stops for review before the next begins.
 - [x] Auto-spin on by default; off under `prefers-reduced-motion`
 - [x] Material mapping unit-tested (colors, tonal stitch, finish ordering, base metal, RGB off)
 - [x] three/R3F/drei are absent from the initial page chunks (lazy, ~268 KB gz)
-- [ ] CI green on the PR
+- [x] CI green on the PR
 
 **Notes**
 - Procedural model instead of a CC0 GLB; swap path documented in `docs/MODEL.md`.
 - Emissive bloom, camera presets, hotspots and screenshot are Phase 4.
+
+## Phase 4 — Wow layer
+
+**Goal:** premium feel (camera moves, glowing RGB, hotspots, shareable image) without hurting speed or accessibility.
+
+**Deliverables**
+- `camera-presets.ts`: Hero / Side / Detail / Base + `CONTROL_LIMITS` (single source for OrbitControls) + `orbitOf()`
+- `scene-rig.tsx`: `CameraRig` eases camera + orbit target to a preset (instant under reduced motion; cancelled when the visitor grabs the chair); `CaptureBridge` renders a fresh frame for capture (no `preserveDrawingBuffer`)
+- `hotspots-data.ts` + `hotspots.tsx`: six drei `<Html>` buttons pinned to the model, portalled outside the stage's `role="img"`; each focuses its option in the panel and switches to its camera preset
+- RGB strip: emissive cores + additive glow halos from a generated texture, breathing pulse (off under reduced motion); no post-processing pass
+- `screenshot.ts`: "Save image" composites the frame on a branded background with name + price and downloads a PNG
+- Stage toolbar: camera view group (bottom bar on desktop, vertical stack on phones so it never covers hotspots) and Save image
+- `frameloop` stays `demand` unless spinning or pulsing; camera moves invalidate themselves
+- ESLint ignores Playwright output folders
+
+**Acceptance**
+- [x] Presets are labelled toggle buttons (`aria-pressed`); choosing one stops auto-spin
+- [x] Every preset sits inside the orbit limits (unit test), every hotspot targets a real option + preset (unit test)
+- [x] Hotspot click focuses the option's input and selects its preset (desktop + mobile)
+- [x] Save image downloads a valid PNG named after the build
+- [x] No toolbar or Save image in the no-WebGL fallback
+- [ ] CI green on the PR
+
+**Notes**
+- Bloom via `@react-three/postprocessing` was skipped: additive halos give the glow at no extra dependency or full-screen pass. Add bloom if the look needs more.
+- Framer Motion still not added: CSS transitions cover the UI chrome so far.

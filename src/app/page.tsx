@@ -10,7 +10,7 @@ import { decodeConfig } from "@/lib/configurator/url";
 const STAGE =
   "relative bg-[radial-gradient(ellipse_at_50%_45%,oklch(0.25_0.02_265),var(--background)_70%)]";
 const SHEET =
-  "relative -mt-5 flex min-h-0 flex-col rounded-t-3xl border-t border-border bg-card lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-l";
+  "relative z-20 -mt-5 flex min-h-0 flex-col rounded-t-3xl border-t border-border bg-card lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-l";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (

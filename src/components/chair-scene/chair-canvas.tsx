@@ -1,34 +1,57 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import type { ChairConfig } from "@/data/catalog";
+import { CAMERA_PRESETS, CONTROL_LIMITS } from "@/components/chair-scene/camera-presets";
 import { ChairModel } from "@/components/chair-scene/chair-model";
+import { Hotspots } from "@/components/chair-scene/hotspots";
+import type { Hotspot } from "@/components/chair-scene/hotspots-data";
 import { chairMaterials } from "@/components/chair-scene/materials";
+import { CameraRig, CaptureBridge, type CameraGoal, type PresetRequest } from "@/components/chair-scene/scene-rig";
 
 export interface ChairCanvasProps {
   config: ChairConfig;
-  /** Off under prefers-reduced-motion. Also stops for good once the visitor grabs the chair. */
-  autoRotate: boolean;
+  reducedMotion: boolean;
+  /** Auto-spin; the stage turns it off for reduced motion and after the first interaction. */
+  spinning: boolean;
+  preset: PresetRequest;
+  showHotspots: boolean;
+  hotspotPortal: RefObject<HTMLElement | null>;
+  captureRef: RefObject<(() => HTMLCanvasElement) | null>;
+  onHotspot: (hotspot: Hotspot) => void;
+  onInteract: () => void;
   onReady: () => void;
   onContextLost: () => void;
 }
 
-const TARGET: [number, number, number] = [0, 0.66, 0];
+const HERO = CAMERA_PRESETS.hero;
 
 /** Default export so the stage can lazy-load three/R3F/drei as one chunk. */
-export default function ChairCanvas({ config, autoRotate, onReady, onContextLost }: ChairCanvasProps) {
+export default function ChairCanvas({
+  config,
+  reducedMotion,
+  spinning,
+  preset,
+  showHotspots,
+  hotspotPortal,
+  captureRef,
+  onHotspot,
+  onInteract,
+  onReady,
+  onContextLost,
+}: ChairCanvasProps) {
   const materials = useMemo(() => chairMaterials(config), [config]);
-  const [grabbed, setGrabbed] = useState(false);
-  const spinning = autoRotate && !grabbed;
+  const goalRef = useRef<CameraGoal | null>(null);
+  const animateRgb = Boolean(materials.rgb) && !reducedMotion;
 
   return (
     <Canvas
       dpr={[1, 2]}
-      camera={{ position: [1.8, 1.3, 2.5], fov: 35 }}
-      // Render continuously only while spinning; otherwise only when something changes.
-      frameloop={spinning ? "always" : "demand"}
+      camera={{ position: [...HERO.position], fov: 35 }}
+      // Continuous frames only for spin / RGB pulse; otherwise render on change (camera moves invalidate themselves).
+      frameloop={spinning || animateRgb ? "always" : "demand"}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener(
@@ -51,7 +74,7 @@ export default function ChairCanvas({ config, autoRotate, onReady, onContextLost
         <Lightformer intensity={0.8} position={[3, 1, -1]} rotation-y={-Math.PI / 2} scale={[3, 2, 1]} />
       </Environment>
 
-      <ChairModel materials={materials} lumbar={config.lumbar} />
+      <ChairModel materials={materials} lumbar={config.lumbar} animateRgb={animateRgb} />
       <ContactShadows
         key={materials.base.racing ? "racing" : "star"}
         position={[0, 0.001, 0]}
@@ -62,20 +85,23 @@ export default function ChairCanvas({ config, autoRotate, onReady, onContextLost
         resolution={512}
         frames={1}
       />
+      {showHotspots && <Hotspots portal={hotspotPortal} onSelect={onHotspot} />}
 
       <OrbitControls
         makeDefault
-        target={TARGET}
+        target={[...HERO.target]}
         enablePan={false}
-        minDistance={1.5}
-        maxDistance={4.5}
-        minPolarAngle={0.35}
-        maxPolarAngle={1.45}
-        enableDamping={autoRotate}
+        {...CONTROL_LIMITS}
+        enableDamping={!reducedMotion}
         autoRotate={spinning}
         autoRotateSpeed={0.8}
-        onStart={() => setGrabbed(true)}
+        onStart={() => {
+          goalRef.current = null;
+          onInteract();
+        }}
       />
+      <CameraRig request={preset} goalRef={goalRef} instant={reducedMotion} />
+      <CaptureBridge captureRef={captureRef} />
     </Canvas>
   );
 }

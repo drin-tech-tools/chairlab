@@ -37,3 +37,34 @@ the flat SVG fallback use.
 - Reduced motion: no auto-spin, no damping, no canvas fade.
 - Fallback: the flat SVG (`flat-chair.tsx`) shows while the chunk loads, and permanently when WebGL is missing, the
   scene throws, or the GPU context is lost.
+
+## Camera presets
+
+Defined in `src/components/chair-scene/camera-presets.ts`. Unit tests keep each one inside `CONTROL_LIMITS`.
+
+| Preset | Position | Target | Use |
+| --- | --- | --- | --- |
+| Hero | (1.8, 1.3, 2.5) | (0, 0.66, 0) | default 3/4 view |
+| Side | (3, 1.05, 0) | (0, 0.62, 0) | profile, RGB strip |
+| Detail | (0.75, 1.2, 1.55) | (0, 0.92, -0.2) | backrest stitching, lumbar |
+| Base | (1.1, 0.5, 1.3) | (0, 0.15, 0) | base and casters |
+
+## Hotspots
+
+World-space anchors in `hotspots-data.ts` (backrest points are pre-transformed by the backrest's
+`position (0, 0.5, -0.24)` and `rotation.x -0.14`). Moving model parts means updating these.
+
+| Option | Position | Preset |
+| --- | --- | --- |
+| frame | (0.33, 0.7, 0.12), right arm pad | Hero |
+| color | (-0.12, 0.56, 0.14), seat | Hero |
+| stitching | (0.1, 1, -0.22), backrest insert | Detail |
+| lumbar | (0, 0.72, -0.1), lumbar pillow | Detail |
+| rgb | (0.29, 1.33, -0.43), rear top edge | Side |
+| base | (0, 0.1, 0.26), front leg | Base |
+
+## RGB glow
+
+Three emissive strips (`toneMapped: false`) plus one additive, depth-write-off halo plane each, textured with a
+generated 64x64 soft falloff and tinted with the RGB color, plus a rear point light. Under no reduced motion the
+emissive intensity and halo opacity breathe (2.2 s period). This avoids a bloom post-processing pass.

@@ -1,6 +1,16 @@
 "use client";
 
+import { useEffect, useMemo, useRef } from "react";
 import { RoundedBox } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import {
+  AdditiveBlending,
+  CanvasTexture,
+  DoubleSide,
+  SRGBColorSpace,
+  type MeshBasicMaterial,
+  type MeshStandardMaterial,
+} from "three";
 import type { ChairMaterials } from "@/components/chair-scene/materials";
 
 // Procedural low-poly chair. Units ~ metres, floor at y=0, chair faces +z. Slots: docs/MODEL.md.
@@ -53,6 +63,92 @@ function Stitch({ width, height, position, color, rotation }: {
   );
 }
 
+// Rear-edge strips: [size, position, halo plane size, halo rotation].
+const RGB_STRIPS: { size: Vec3; at: Vec3; halo: [number, number]; spin: number }[] = [
+  { size: [0.012, 0.8, 0.012], at: [-0.292, 0.45, -0.07], halo: [0.16, 0.95], spin: 0 },
+  { size: [0.012, 0.8, 0.012], at: [0.292, 0.45, -0.07], halo: [0.16, 0.95], spin: 0 },
+  { size: [0.58, 0.012, 0.012], at: [0, 0.885, -0.07], halo: [0.16, 0.74], spin: Math.PI / 2 },
+];
+
+/** Soft white falloff across the width and toward both ends; tinted by the halo material color. */
+function glowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  const across = ctx.createLinearGradient(0, 0, 64, 0);
+  across.addColorStop(0, "rgba(255,255,255,0)");
+  across.addColorStop(0.5, "rgba(255,255,255,1)");
+  across.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = across;
+  ctx.fillRect(0, 0, 64, 64);
+  const along = ctx.createLinearGradient(0, 0, 0, 64);
+  along.addColorStop(0, "rgba(0,0,0,0)");
+  along.addColorStop(0.15, "rgba(0,0,0,1)");
+  along.addColorStop(0.85, "rgba(0,0,0,1)");
+  along.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.fillStyle = along;
+  ctx.fillRect(0, 0, 64, 64);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** Emissive strips + additive halos (a cheap glow without a post-processing pass). */
+function RgbStrip({ color, animate }: { color: string; animate: boolean }) {
+  const glow = useMemo(() => glowTexture(), []);
+  const cores = useRef<(MeshStandardMaterial | null)[]>([]);
+  const halos = useRef<(MeshBasicMaterial | null)[]>([]);
+
+  useEffect(() => () => glow.dispose(), [glow]);
+
+  useFrame(({ clock }) => {
+    if (!animate) return;
+    const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 2.2);
+    for (const core of cores.current) if (core) core.emissiveIntensity = 2.2 + 1.6 * k;
+    for (const halo of halos.current) if (halo) halo.opacity = 0.35 + 0.4 * k;
+  });
+
+  return (
+    // Remount on toggle so the static (non-pulsing) intensities are restored.
+    <group key={String(animate)}>
+      {RGB_STRIPS.map((strip, i) => (
+        <group key={i} position={strip.at}>
+          <mesh>
+            <boxGeometry args={strip.size} />
+            <meshStandardMaterial
+              ref={(el) => {
+                cores.current[i] = el;
+              }}
+              color={color}
+              emissive={color}
+              emissiveIntensity={3}
+              toneMapped={false}
+            />
+          </mesh>
+          <mesh position={[0, 0, -0.006]} rotation={[0, 0, strip.spin]}>
+            <planeGeometry args={strip.halo} />
+            <meshBasicMaterial
+              ref={(el) => {
+                halos.current[i] = el;
+              }}
+              map={glow}
+              color={color}
+              opacity={0.55}
+              transparent
+              blending={AdditiveBlending}
+              depthWrite={false}
+              side={DoubleSide}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
+      <pointLight position={[0, 0.45, -0.3]} color={color} intensity={1.5} distance={1.6} />
+    </group>
+  );
+}
+
 function Base({ m }: { m: ChairMaterials }) {
   const { racing } = m.base;
   const legMaterial = <meshStandardMaterial color={m.base.color} metalness={m.base.metalness} roughness={m.base.roughness} />;
@@ -87,7 +183,7 @@ function Base({ m }: { m: ChairMaterials }) {
   );
 }
 
-function Backrest({ m, lumbar }: { m: ChairMaterials; lumbar: boolean }) {
+function Backrest({ m, lumbar, animateRgb }: { m: ChairMaterials; lumbar: boolean; animateRgb: boolean }) {
   return (
     <group position={[0, 0.5, -0.24]} rotation={[-0.14, 0, 0]}>
       <RoundedBox args={[0.58, 0.86, 0.07]} radius={0.035} position={[0, 0.45, -0.045]} castShadow>
@@ -125,26 +221,21 @@ function Backrest({ m, lumbar }: { m: ChairMaterials; lumbar: boolean }) {
         </group>
       )}
 
-      {m.rgb && (
-        <group>
-          {[
-            { size: [0.012, 0.8, 0.012] as Vec3, at: [-0.292, 0.45, -0.07] as Vec3 },
-            { size: [0.012, 0.8, 0.012] as Vec3, at: [0.292, 0.45, -0.07] as Vec3 },
-            { size: [0.58, 0.012, 0.012] as Vec3, at: [0, 0.885, -0.07] as Vec3 },
-          ].map((strip, i) => (
-            <mesh key={i} position={strip.at}>
-              <boxGeometry args={strip.size} />
-              <meshStandardMaterial color={m.rgb!} emissive={m.rgb!} emissiveIntensity={3} toneMapped={false} />
-            </mesh>
-          ))}
-          <pointLight position={[0, 0.45, -0.3]} color={m.rgb} intensity={1.5} distance={1.6} />
-        </group>
-      )}
+      {m.rgb && <RgbStrip color={m.rgb} animate={animateRgb} />}
     </group>
   );
 }
 
-export function ChairModel({ materials: m, lumbar }: { materials: ChairMaterials; lumbar: boolean }) {
+export function ChairModel({
+  materials: m,
+  lumbar,
+  animateRgb,
+}: {
+  materials: ChairMaterials;
+  lumbar: boolean;
+  /** Breathing pulse; off under prefers-reduced-motion. */
+  animateRgb: boolean;
+}) {
   return (
     <group>
       <Base m={m} />
@@ -194,7 +285,7 @@ export function ChairModel({ materials: m, lumbar }: { materials: ChairMaterials
         </group>
       ))}
 
-      <Backrest m={m} lumbar={lumbar} />
+      <Backrest m={m} lumbar={lumbar} animateRgb={animateRgb} />
     </group>
   );
 }
