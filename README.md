@@ -2,7 +2,7 @@
 
 A mobile-first 3D gaming chair configurator. Orbit, rotate and zoom a chair; swap frame, upholstery, stitching, base, lumbar pillow and RGB; watch the price update live; share your build by URL or short id. No login required.
 
-> Status: **Phase 1 — Catalog, store, price engine, URL.** See [docs/PROGRESS.md](docs/PROGRESS.md).
+> Status: **Phase 2 — UI shell with flat preview.** See [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## Stack
 

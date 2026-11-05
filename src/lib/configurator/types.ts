@@ -15,6 +15,8 @@ export interface ChoiceOption {
   readonly label: string;
   readonly choices: readonly [Choice, ...Choice[]];
   readonly default: string;
+  /** Id of a toggle that must be on for this option to apply (UI hides it otherwise). */
+  readonly requires?: string;
 }
 
 export interface ToggleOption {

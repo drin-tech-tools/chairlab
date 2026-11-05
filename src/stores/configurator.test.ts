@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { chair } from "@/data/catalog";
 import { defaultConfig } from "@/lib/configurator/validation";
-import { useConfigurator } from "@/stores/configurator";
+import { createConfiguratorStore } from "@/stores/configurator";
 
-const store = useConfigurator;
+let store = createConfiguratorStore();
 
 describe("configurator store", () => {
-  beforeEach(() => store.getState().reset());
+  beforeEach(() => {
+    store = createConfiguratorStore();
+  });
 
   it("starts with the catalog defaults", () => {
     expect(store.getState().config).toEqual(defaultConfig(chair));
@@ -23,6 +25,17 @@ describe("configurator store", () => {
     expect(store.getState().config).toEqual(loaded);
     store.getState().reset();
     expect(store.getState().config).toEqual(defaultConfig(chair));
+  });
+
+  it("accepts an initial config, e.g. from a shared URL", () => {
+    const initial = { ...defaultConfig(chair), base: "racing" as const };
+    expect(createConfiguratorStore(initial).getState().config).toEqual(initial);
+  });
+
+  it("keeps separate stores isolated (one per request on the server)", () => {
+    const other = createConfiguratorStore();
+    store.getState().setOption("rgb", true);
+    expect(other.getState().config.rgb).toBe(false);
   });
 
   it("does not share the defaults object between resets", () => {

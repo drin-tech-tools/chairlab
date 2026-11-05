@@ -6,7 +6,7 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ChairLab — 3D Gaming Chair Configurator",
+  title: "ChairLab | 3D Gaming Chair Configurator",
   description:
     "Build your gaming chair in 3D: frame, upholstery, stitching, base, lumbar and RGB — with live pricing and shareable builds.",
 };
