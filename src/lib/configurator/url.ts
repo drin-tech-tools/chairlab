@@ -1,5 +1,5 @@
 import type { AnyConfig, ConfigOf, Product } from "@/lib/configurator/types";
-import { optionSchema } from "@/lib/configurator/validation";
+import { coerceConfig } from "@/lib/configurator/validation";
 
 /** Every option is written (not just non-defaults) so links survive default changes. */
 export function encodeConfig<P extends Product>(product: P, config: ConfigOf<P>): string {
@@ -15,12 +15,10 @@ export function encodeConfig<P extends Product>(product: P, config: ConfigOf<P>)
 /** Lenient: untrusted input, each invalid or missing field falls back to its default; unknown keys are ignored. */
 export function decodeConfig<P extends Product>(product: P, query: string | URLSearchParams): ConfigOf<P> {
   const params = typeof query === "string" ? new URLSearchParams(query) : query;
-  const config: AnyConfig = {};
+  const raw: Record<string, unknown> = {};
   for (const option of product.options) {
-    const raw = params.get(option.id);
-    const value = option.kind === "toggle" ? { "1": true, "0": false }[raw ?? ""] : raw;
-    const parsed = optionSchema(option).safeParse(value);
-    config[option.id] = parsed.success ? parsed.data : option.default;
+    const value = params.get(option.id);
+    raw[option.id] = option.kind === "toggle" ? { "1": true, "0": false }[value ?? ""] : value;
   }
-  return config as ConfigOf<P>;
+  return coerceConfig(product, raw);
 }

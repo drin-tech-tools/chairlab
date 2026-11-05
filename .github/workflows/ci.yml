@@ -32,6 +32,8 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Start server
+        env:
+          CONFIG_STORE: memory
         run: |
           npm run start > server.log 2>&1 &
           for i in $(seq 60); do curl -sf http://localhost:3000 > /dev/null && exit 0; sleep 1; done
@@ -44,3 +46,26 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  db:
+    # Applies the Supabase migration to a throwaway Postgres and checks constraints + RLS.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - run: psql -X -v ON_ERROR_STOP=1 -f supabase/tests/configs_rls.sql

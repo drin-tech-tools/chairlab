@@ -68,8 +68,9 @@ test.describe("configurator", () => {
     await expect(group(page, "Base").getByRole("radio", { name: /5-Star Nylon/ })).toBeChecked();
   });
 
-  test("copy share link puts the current build URL on the clipboard", async ({ page, context }) => {
+  test("copy share link falls back to the long URL when saving fails", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.route("**/api/configs", (route) => route.fulfill({ status: 503, json: { error: "store_unavailable" } }));
     await page.goto("/");
     await group(page, "Stitching").getByRole("radio", { name: /Cyan/ }).check();
     await expect(page).toHaveURL(/stitching=cyan/);
