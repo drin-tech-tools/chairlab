@@ -5,9 +5,9 @@ One phase per PR. Each phase stops for review before the next begins.
 | Phase | Name | Status | PR |
 | --- | --- | --- | --- |
 | 0 | Foundations | ✅ Merged | #1 |
-| 1 | Catalog + Zustand + price engine + URL encode/decode | 🟡 In review | #2 |
-| 2 | UI shell with flat preview | 🟡 In review (stacked on #2) | — |
-| 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | ⬜ Not started | — |
+| 1 | Catalog + Zustand + price engine + URL encode/decode | ✅ Merged | #2 |
+| 2 | UI shell with flat preview | ✅ Merged | #3 |
+| 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | 🟡 In review | — |
 | 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | ⬜ Not started | — |
 | 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | ⬜ Not started | — |
 | 6 | Polish + Vercel launch, README GIFs, Cucumber happy path | ⬜ Not started | — |
@@ -51,7 +51,7 @@ One phase per PR. Each phase stops for review before the next begins.
 - [x] URL round-trips; missing/invalid params fall back to defaults; unknown keys ignored
 - [x] Strict schema rejects unknown choices, wrong types, missing and extra keys
 - [x] Store set/load/reset tested; invalid values are compile errors
-- [ ] CI green on the PR
+- [x] CI green on the PR
 
 **Notes**
 - Pro stitching = any contrast stitching color (+₱300); tonal is free.
@@ -77,9 +77,33 @@ One phase per PR. Each phase stops for review before the next begins.
 - [x] Invalid URL values fall back to defaults
 - [x] Copy share link puts the current URL on the clipboard and it reopens the same build
 - [x] Every control is a native radio / `role="switch"` checkbox with a label inside a `fieldset`/`legend`
-- [ ] CI green on the PR
+- [x] CI green on the PR
 
 **Notes**
 - Store changed from a module singleton to `createConfiguratorStore()` + context provider (Zustand's Next.js pattern) so SSR never shares state across requests; `/b/[id]` (Phase 5) reuses it with a server-loaded config.
 - `cacheComponents` is on (Next 16 default scaffold), so request data must be read inside `<Suspense>`.
 - Framer Motion not added yet: nothing in this phase needs more than CSS transitions. Comes with Phase 4 camera/UI transitions.
+
+## Phase 3 — R3F scene
+
+**Goal:** an orbitable 3D chair whose materials follow the store, with a graceful flat fallback.
+
+**Deliverables**
+- `chair-stage.tsx`: WebGL detection, lazy `next/dynamic` canvas, error boundary + context-loss fallback, loading status, accessible build description
+- `chair-canvas.tsx`: Canvas, lights, local Lightformer environment, contact shadows, OrbitControls (no pan, zoom 1.5 to 4.5, polar limits), auto-spin that stops on first grab
+- `chair-model.tsx`: procedural low-poly chair (see `docs/MODEL.md`)
+- `materials.ts`: `chairMaterials(config)` slot mapping shared by 3D and flat views, `shade()`
+- `src/hooks/use-prefers-reduced-motion.ts`
+- Playwright runs Chromium with SwiftShader so CI really renders WebGL
+
+**Acceptance**
+- [x] Smoke: canvas mounts and reports ready (desktop + mobile)
+- [x] No WebGL: flat fallback renders, no canvas, pricing still works
+- [x] Auto-spin on by default; off under `prefers-reduced-motion`
+- [x] Material mapping unit-tested (colors, tonal stitch, finish ordering, base metal, RGB off)
+- [x] three/R3F/drei are absent from the initial page chunks (lazy, ~268 KB gz)
+- [ ] CI green on the PR
+
+**Notes**
+- Procedural model instead of a CC0 GLB; swap path documented in `docs/MODEL.md`.
+- Emissive bloom, camera presets, hotspots and screenshot are Phase 4.

@@ -75,7 +75,7 @@ test.describe("configurator", () => {
     await expect(page).toHaveURL(/stitching=cyan/);
 
     await page.getByRole("button", { name: "Copy share link" }).click();
-    await expect(page.getByRole("status")).toHaveText("Link copied");
+    await expect(page.getByRole("status", { name: "Share link" })).toHaveText("Link copied");
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     expect(copied).toBe(page.url());
 
