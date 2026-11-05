@@ -8,8 +8,8 @@ One phase per PR. Each phase stops for review before the next begins.
 | 1 | Catalog + Zustand + price engine + URL encode/decode | ✅ Merged | #2 |
 | 2 | UI shell with flat preview | ✅ Merged | #3 |
 | 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | ✅ Merged | #4 |
-| 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | 🟡 In review | — |
-| 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | ⬜ Not started | — |
+| 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | ✅ Merged | #5 |
+| 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | 🟡 In review | — |
 | 6 | Polish + Vercel launch, README GIFs, Cucumber happy path | ⬜ Not started | — |
 
 ## Phase 0 — Foundations
@@ -128,8 +128,36 @@ One phase per PR. Each phase stops for review before the next begins.
 - [x] Hotspot click focuses the option's input and selects its preset (desktop + mobile)
 - [x] Save image downloads a valid PNG named after the build
 - [x] No toolbar or Save image in the no-WebGL fallback
-- [ ] CI green on the PR
+- [x] CI green on the PR
 
 **Notes**
 - Bloom via `@react-three/postprocessing` was skipped: additive halos give the glow at no extra dependency or full-screen pass. Add bloom if the look needs more.
 - Framer Motion still not added: CSS transitions cover the UI chrome so far.
+
+## Phase 5 — Save and share
+
+**Goal:** save any build to a short `/b/<id>` link through the Next.js BFF; Supabase behind it, locked down by RLS.
+
+**Deliverables**
+- `supabase/migrations/20261106120000_create_configs.sql`: `configs` table (id/product/config/price/created_at) with check constraints, analytics index, RLS on, all grants revoked from `anon`/`authenticated`
+- `supabase/tests/configs_rls.sql`: rolled-back SQL test (constraints, RLS on, public roles denied, service role allowed); runs in CI against `postgres:17`
+- `src/lib/configurator/share-id.ts`: content-addressed id, base64url(SHA-256(product + canonical query)) truncated to 10 chars
+- `src/services/configs/`: `ConfigRepository` port, Supabase adapter (PostgREST over `fetch`, upsert ignore-duplicates), in-memory adapter, `store.ts` factory (`server-only`), API handlers
+- `POST /api/configs`, `GET /api/configs/[id]`; `/b/[id]` page with not-found and store-error states
+- "Copy share link" saves and copies the short link, falling back to the long URL; Safari-safe clipboard write
+- `coerceConfig` (lenient per-field) shared by URL decode and stored rows
+
+**Acceptance**
+- [x] Same build gives the same id; save is idempotent (unit + e2e)
+- [x] POST validates strictly (415 / 413 / 400 with issue paths; client prices rejected); server computes the price
+- [x] GET returns immutable-cacheable JSON; unknown / malformed ids 404 without touching the store
+- [x] Short link round-trips in the browser; editing a saved build switches back to the long URL
+- [x] Store down or unconfigured: API 503, share falls back, `/b/<id>` shows a retry page
+- [x] Migration checks pass on Postgres 17 (local) and run in CI
+- [ ] CI green on the PR
+
+**Notes**
+- Content hashing bounds the table to the catalog's 9,600 combinations, so the unauthenticated POST can't be used to flood storage; no rate limiter needed yet.
+- No supabase-js: two PostgREST calls over `fetch`. Supports new `sb_secret_` keys and legacy service-role JWTs.
+- `.env.example` now uses server-only `SUPABASE_URL`; the unused `NEXT_PUBLIC_SUPABASE_*` names were removed so nothing tempts client-side access.
+- `/b/<id>` streams after a static shell (Cache Components), so an unknown id renders the not-found UI with HTTP 200; the API returns real 404s.

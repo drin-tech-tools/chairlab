@@ -3,31 +3,65 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronUp, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { chair } from "@/data/catalog";
+import { chair, type ChairConfig } from "@/data/catalog";
 import { formatCentavos, priceBreakdown } from "@/lib/configurator/price";
 import { encodeConfig } from "@/lib/configurator/url";
 import { useConfigurator } from "@/components/configurator/configurator-provider";
 
-type CopyState = "idle" | "copied" | "error";
+type ShareState = "idle" | "working" | "short" | "long" | "error";
+
+const SHARE_MESSAGE: Record<ShareState, string> = {
+  idle: "",
+  working: "",
+  short: "Short link copied",
+  long: "Link copied",
+  error: "Copy failed. The address bar has your link.",
+};
+
+/** Save the build for a short `/b/<id>` link; fall back to the long query URL if the store is unreachable. */
+async function resolveShareUrl(config: ChairConfig): Promise<{ url: string; short: boolean }> {
+  const { origin } = window.location;
+  try {
+    const res = await fetch("/api/configs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+    if (res.ok) {
+      const { path } = (await res.json()) as { path: string };
+      return { url: `${origin}${path}`, short: true };
+    }
+  } catch {
+    // Offline or store down: the long URL still restores the build.
+  }
+  return { url: `${origin}/?${encodeConfig(chair, config)}`, short: false };
+}
 
 export function PriceBar() {
   const config = useConfigurator((s) => s.config);
   const price = useMemo(() => priceBreakdown(chair, config), [config]);
-  const [copy, setCopy] = useState<CopyState>("idle");
+  const [share, setShare] = useState<ShareState>("idle");
 
   useEffect(() => {
-    if (copy === "idle") return;
-    const t = setTimeout(() => setCopy("idle"), 2500);
+    if (share === "idle" || share === "working") return;
+    const t = setTimeout(() => setShare("idle"), 2500);
     return () => clearTimeout(t);
-  }, [copy]);
+  }, [share]);
 
   async function copyLink() {
-    const url = `${window.location.origin}${window.location.pathname}?${encodeConfig(chair, config)}`;
+    setShare("working");
+    const result = resolveShareUrl(config);
     try {
-      await navigator.clipboard.writeText(url);
-      setCopy("copied");
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+        // Start the clipboard write inside the click (Safari drops the permission after an await) with the text pending.
+        const blob = result.then(({ url }) => new Blob([url], { type: "text/plain" }));
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+      } else {
+        await navigator.clipboard.writeText((await result).url);
+      }
+      setShare((await result).short ? "short" : "long");
     } catch {
-      setCopy("error");
+      setShare("error");
     }
   }
 
@@ -58,12 +92,18 @@ export function PriceBar() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Button size="lg" onClick={copyLink} className="h-11 px-4 active:scale-[0.98]">
-            {copy === "copied" ? <Check aria-hidden /> : <Link2 aria-hidden />}
+          <Button
+            size="lg"
+            onClick={copyLink}
+            disabled={share === "working"}
+            aria-busy={share === "working"}
+            className="h-11 px-4 active:scale-[0.98]"
+          >
+            {share === "short" || share === "long" ? <Check aria-hidden /> : <Link2 aria-hidden />}
             Copy share link
           </Button>
           <p role="status" aria-label="Share link" className="min-h-4 text-xs text-muted-foreground">
-            {copy === "copied" ? "Link copied" : copy === "error" ? "Copy failed. The address bar has your link." : ""}
+            {SHARE_MESSAGE[share]}
           </p>
         </div>
       </div>

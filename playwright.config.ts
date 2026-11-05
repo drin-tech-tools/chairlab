@@ -24,6 +24,8 @@ export default defineConfig({
     command: process.env.CI ? "npm run start" : "npm run dev",
     url: baseURL,
     reuseExistingServer: true,
+    // No Supabase in tests: the in-memory config store backs /api/configs and /b/[id].
+    env: { CONFIG_STORE: "memory" },
     timeout: 120_000,
   },
 });
