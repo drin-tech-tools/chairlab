@@ -62,7 +62,7 @@ export function PriceBar() {
             {copy === "copied" ? <Check aria-hidden /> : <Link2 aria-hidden />}
             Copy share link
           </Button>
-          <p role="status" className="min-h-4 text-xs text-muted-foreground">
+          <p role="status" aria-label="Share link" className="min-h-4 text-xs text-muted-foreground">
             {copy === "copied" ? "Link copied" : copy === "error" ? "Copy failed. The address bar has your link." : ""}
           </p>
         </div>

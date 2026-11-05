@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { FlatChair } from "@/components/chair-scene/flat-chair";
+import { ChairStage } from "@/components/chair-scene/chair-stage";
 import { ConfiguratorProvider } from "@/components/configurator/configurator-provider";
 import { OptionPanel } from "@/components/configurator/option-panel";
 import { PriceBar } from "@/components/configurator/price-bar";
@@ -8,7 +8,7 @@ import { chair } from "@/data/catalog";
 import { decodeConfig } from "@/lib/configurator/url";
 
 const STAGE =
-  "relative flex items-center justify-center bg-[radial-gradient(ellipse_at_50%_45%,oklch(0.25_0.02_265),var(--background)_70%)] px-4 pt-14 pb-8 lg:p-16";
+  "relative bg-[radial-gradient(ellipse_at_50%_45%,oklch(0.25_0.02_265),var(--background)_70%)]";
 const SHEET =
   "relative -mt-5 flex min-h-0 flex-col rounded-t-3xl border-t border-border bg-card lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-l";
 
@@ -35,7 +35,7 @@ async function Configurator({ searchParams }: Pick<PageProps<"/">, "searchParams
     <ConfiguratorProvider initialConfig={decodeConfig(chair, params)}>
       <UrlSync />
       <section aria-label="Chair preview" className={STAGE}>
-        <FlatChair />
+        <ChairStage />
       </section>
       <aside aria-label="Configure your chair" className={SHEET}>
         <SheetHandle />
@@ -57,7 +57,9 @@ function ConfiguratorSkeleton() {
   return (
     <>
       <section aria-label="Loading chair preview" aria-busy className={STAGE}>
-        <div className="aspect-[5/7] h-full max-h-full animate-pulse rounded-3xl bg-muted/40 motion-reduce:animate-none" />
+        <div className="flex h-full items-center justify-center px-4 pt-14 pb-8 lg:p-16">
+          <div className="aspect-[5/7] h-full max-h-full animate-pulse rounded-3xl bg-muted/40 motion-reduce:animate-none" />
+        </div>
       </section>
       <aside aria-label="Loading options" aria-busy className={SHEET}>
         <SheetHandle />

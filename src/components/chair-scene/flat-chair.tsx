@@ -3,8 +3,10 @@
 import { chair, type ChairConfig } from "@/data/catalog";
 import { getChoice } from "@/lib/configurator/choice";
 import { useConfigurator } from "@/components/configurator/configurator-provider";
+import { chairMaterials } from "@/components/chair-scene/materials";
 
-// Front view, viewBox 400x560. Also the no-WebGL fallback from Phase 3 on.
+// Front view, viewBox 400x560: the loading placeholder and no-WebGL fallback.
+// Decorative: ChairStage carries the accessible description.
 const BACK_SHELL =
   "M112 46Q112 18 140 16L260 16Q288 18 288 46L298 128Q300 146 286 156L278 304Q276 336 250 342L150 342Q124 336 122 304L114 156Q100 146 102 128Z";
 const BACK_PAD =
@@ -38,20 +40,18 @@ export function describeChair(config: ChairConfig): string {
 
 export function FlatChair() {
   const config = useConfigurator((s) => s.config);
-  const hex = (id: keyof ChairConfig) => getChoice(chair, id, String(config[id])).hex;
-
-  const frame = hex("frame") ?? "#121214";
-  const pad = hex("color") ?? "#1a1a1d";
-  const stitch = hex("stitching") ?? `color-mix(in oklch, ${pad}, black 35%)`;
-  const rgb = hex("rgbColor") ?? "#00e5ff";
-  const racing = config.base === "racing";
+  const m = chairMaterials(config);
+  const frame = m.frame;
+  const pad = m.upholstery.color;
+  const stitch = m.stitch;
+  const rgb = m.rgb;
+  const racing = m.base.racing;
   const premium = config.material === "premium";
 
   return (
     <svg
       viewBox="0 0 400 560"
-      role="img"
-      aria-label={describeChair(config)}
+      aria-hidden
       className="chair-flat h-full max-h-full w-auto max-w-full"
     >
       <defs>
@@ -80,7 +80,7 @@ export function FlatChair() {
 
       <ellipse cx="200" cy="538" rx="150" ry="12" fill="#000" opacity="0.5" filter="url(#cl-shadow)" />
 
-      {config.rgb && (
+      {rgb && (
         <path d={BACK_SHELL} fill="none" stroke={rgb} strokeWidth="10" opacity="0.75" filter="url(#cl-glow)" />
       )}
 
@@ -90,7 +90,7 @@ export function FlatChair() {
 
       {/* Backrest */}
       <path d={BACK_SHELL} fill={frame} />
-      {config.rgb && <path d={BACK_SHELL} fill="none" stroke={rgb} strokeWidth="2.5" />}
+      {rgb && <path d={BACK_SHELL} fill="none" stroke={rgb} strokeWidth="2.5" />}
       <path d={BACK_PAD} fill={pad} />
       <rect x="146" y="62" width="20" height="30" rx="8" fill="#0b0c10" stroke={frame} strokeWidth="2" />
       <rect x="234" y="62" width="20" height="30" rx="8" fill="#0b0c10" stroke={frame} strokeWidth="2" />
