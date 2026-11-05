@@ -23,6 +23,31 @@ function repositoryOrNull(getRepository: RepositoryFactory): ConfigRepository | 
   }
 }
 
+/** Read the body as UTF-8, or null as soon as it exceeds `limit` bytes (the rest is never read). */
+async function readTextCapped(request: Request, limit: number): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 /** POST /api/configs: validate, price on the server, store under a content-hash id. */
 export async function handleSaveConfig(request: Request, getRepository: RepositoryFactory): Promise<Response> {
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
@@ -31,10 +56,9 @@ export async function handleSaveConfig(request: Request, getRepository: Reposito
   if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
     return json({ error: "payload_too_large" }, 413);
   }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    return json({ error: "payload_too_large" }, 413);
-  }
+  // Content-Length can be absent (chunked) or wrong, so enforce the cap while streaming, never after buffering.
+  const text = await readTextCapped(request, MAX_BODY_BYTES);
+  if (text === null) return json({ error: "payload_too_large" }, 413);
 
   let body: unknown;
   try {

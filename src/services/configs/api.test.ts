@@ -46,6 +46,27 @@ describe("POST /api/configs", () => {
     expect(res.status).toBe(413);
   });
 
+  it("stops reading a chunked body (no Content-Length) once it passes 2 KB", async () => {
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(new Uint8Array(1_024).fill(0x20));
+      },
+    });
+    const request = new Request("http://localhost/api/configs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: endless,
+      duplex: "half",
+    } as RequestInit);
+    expect(request.headers.get("content-length")).toBeNull();
+
+    const res = await handleSaveConfig(request, getRepo);
+    expect(res.status).toBe(413);
+    expect(pulled).toBeLessThan(10);
+  });
+
   it("rejects malformed JSON", async () => {
     expect((await handleSaveConfig(post("{nope"), getRepo)).status).toBe(400);
   });
