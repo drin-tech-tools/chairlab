@@ -72,6 +72,7 @@ export const chair = {
       id: "rgbColor",
       label: "RGB color",
       default: "cyan",
+      requires: "rgb",
       choices: [
         { id: "cyan", label: "Cyan", price: 0, hex: "#00e5ff" },
         { id: "magenta", label: "Magenta", price: 0, hex: "#ff2bd6" },
