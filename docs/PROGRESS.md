@@ -9,8 +9,8 @@ One phase per PR. Each phase stops for review before the next begins.
 | 2 | UI shell with flat preview | ✅ Merged | #3 |
 | 3 | R3F scene: orbit, materials, WebGL fallback, reduced-motion | ✅ Merged | #4 |
 | 4 | Wow: camera presets, RGB emissive, hotspots, screenshot | ✅ Merged | #5 |
-| 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | 🟡 In review | — |
-| 6 | Polish + Vercel launch, README GIFs, Cucumber happy path | ⬜ Not started | — |
+| 5 | Save/share: Supabase + RLS, POST/GET, `/b/[id]` | ✅ Merged | #6 |
+| 6 | Polish + Vercel launch, README GIFs, Cucumber happy path | 🟡 In review | — |
 
 ## Phase 0 — Foundations
 
@@ -154,10 +154,47 @@ One phase per PR. Each phase stops for review before the next begins.
 - [x] Short link round-trips in the browser; editing a saved build switches back to the long URL
 - [x] Store down or unconfigured: API 503, share falls back, `/b/<id>` shows a retry page
 - [x] Migration checks pass on Postgres 17 (local) and run in CI
-- [ ] CI green on the PR
+- [x] CI green on the PR
 
 **Notes**
 - Content hashing bounds the table to the catalog's 9,600 combinations, so the unauthenticated POST can't be used to flood storage; no rate limiter needed yet.
 - No supabase-js: two PostgREST calls over `fetch`. Supports new `sb_secret_` keys and legacy service-role JWTs.
 - `.env.example` now uses server-only `SUPABASE_URL`; the unused `NEXT_PUBLIC_SUPABASE_*` names were removed so nothing tempts client-side access.
 - `/b/<id>` streams after a static shell (Cache Components), so an unknown id renders the not-found UI with HTTP 200; the API returns real 404s.
+- The POST body is capped at 2 KB while streaming, so a chunked upload without `Content-Length` can't be buffered unbounded.
+
+## Phase 6 — Polish and launch
+
+**Goal:** make ChairLab launch-ready: a BDD happy path, README media, link previews, baseline security headers, an automated accessibility audit, a measured mobile load, and a Vercel deploy path.
+
+**Deliverables**
+- `features/configure.feature`: configure → live price → copy short link → reopen the link in a new tab → same build (Cucumber + Playwright)
+- `e2e/launch.spec.ts`: axe WCAG 2.1 A/AA audit (configurator with RGB on, not-found page), link-preview metadata, app icon, security headers
+- `next.config.ts`: `Content-Security-Policy` (`frame-ancestors`, `object-src`, `base-uri`, `form-action`), `nosniff`, `Referrer-Policy`, `Permissions-Policy`; `X-Powered-By` off
+- Open Graph + Twitter card metadata; `src/app/opengraph-image.png` (1200×630) and `icon.svg` replace the scaffold favicon
+- `scripts/capture-media.mts` (`npm run media`): records `docs/media/*.gif` and the link-preview image from a running server (Playwright frames → sharp animated GIF)
+- README: GIFs, deploy guide (Vercel + Supabase), performance numbers
+
+**Acceptance**
+- [x] Cucumber happy path passes against the production build (2 scenarios, 23 steps)
+- [x] No axe WCAG 2.1 A/AA violations on the configurator or the not-found page (desktop + mobile)
+- [x] `og:image`, `twitter:card` and the icon resolve; security headers on pages and API responses
+- [x] Mobile load measured: interactive in under 3 s (table below)
+- [x] lint, typecheck, 75 unit, build, 50 e2e (desktop + mobile) pass locally
+- [ ] CI green on the PR
+- [ ] Deployed to Vercel with Supabase env vars set (needs the owner's Vercel + Supabase accounts)
+
+**Performance** (production build, Pixel 7 profile, 4× CPU slowdown, Slow 4G: 150 ms RTT, 1.6 Mbps; cold cache; 3 runs)
+
+| Metric | Result |
+| --- | --- |
+| First contentful paint | 0.74 s |
+| Options interactive (hydrated, price updates on tap) | 1.83–1.86 s |
+| 3D scene ready (lazy R3F chunk, flat preview until then) | 3.87 s |
+| Transferred (JS) | 528 KB (438 KB) |
+
+**Notes**
+- The chair is procedural, so there is no GLB to Draco-compress; `docs/MODEL.md` documents the GLB swap path, where Draco applies.
+- No script/style CSP yet: Next's inline bootstrap needs per-request nonces, which would make every page dynamic. The shipped directives don't touch scripts.
+- Taps before hydration (~1.8 s on the slow profile) are not replayed for the native radios; the 3D scene arriving later is progressive enhancement.
+- New dev dependencies: `@axe-core/playwright` (a11y audit) and `sharp` (GIF encoding; already installed via Next, now declared).
